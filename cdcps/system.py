@@ -55,20 +55,20 @@ class System:
         # -------------------------------
         self.impulse_response = []
         self.control_system = dict(ss=[], G0=[], F=[], Gcl= [])
-        self.consensus = dict(graph=[], val=[])
-        self.synchronization = dict(graphs=[],
-                                    systems=[],
-                                    state_projection=[],
-                                    input_projection=[],
-                                    ouput_projection=[],
-                                    feedback_gain=[],
-                                    reference_system=[],
-                                    synchronized=[],
-                                    has_intersection=[],
-                                    all_agents_identical=[])
+        # self.consensus = dict(graph=[], val=[])
+        # self.synchronization = dict(graphs=[],
+        #                             systems=[],
+        #                             state_projection=[],
+        #                             input_projection=[],
+        #                             ouput_projection=[],
+        #                             feedback_gain=[],
+        #                             reference_system=[],
+        #                             synchronized=[],
+        #                             has_intersection=[],
+        #                             all_agents_identical=[])
         # -------------------------------
         self.observable = []
-        self.synchronized = []
+        # self.synchronized = []
         # -------------------------------
         self.TimeGrid = []
         self.InputHistory = []
@@ -79,7 +79,7 @@ class System:
         self.OutputFunction = []
         self.TimeGridIntegrator = []
         # -------------------------------
-        self.ref_point = []
+        # self.ref_point = []
 
     def __repr__(self):
         return str('LTI_system')

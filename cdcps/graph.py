@@ -35,7 +35,7 @@ class Graph:
         self.graph = []
         self.adjacency = []
         self.incidence = []
-        self.inDeree = []
+        self.inDegree = []
         self.totDegree = []
         self.inLaplacian = []
         self.totLaplacian = []
@@ -101,14 +101,14 @@ class Graph:
     @classmethod
     def get_graph_from_union(cls, graph_list):
         """ This function returns a graph from a graph union """
-
+        """ !! TRANSFER THIS FUNCTION INTO __add__ !!"""
         NX = graph_list[0].graph.number_of_nodes()
         A_new = np.zeros([NX, NX])
         for i_g in graph_list:
             A_new = A_new + i_g.adjacency
         for i_row in range(NX):
             for i_col in range(NX):
-                if A_new[i_row,i_col]>0:
+                if A_new[i_row, i_col] > 0:
                     A_new[i_row, i_col] = 1.0
         return cls.get_graph_from_adjacency(A_new)
 
@@ -116,7 +116,7 @@ class Graph:
         """ This function yields the adjacency, degree and Laplacian matrix. """
         self.adjacency = nx.to_numpy_matrix(self.graph).transpose()
         deg_in = np.sum(nx.to_numpy_matrix(self.graph).transpose(), axis=1)
-        self.inDeree = np.diag(np.asarray(deg_in).flatten())
+        self.inDegree = np.diag(np.asarray(deg_in).flatten())
         self.totDegree = np.diag(np.array([[list(self.graph.degree)[i][1]] for i in range(len(self.graph.nodes))]).T[0])
 
         inc_nw = np.array(nx.incidence_matrix(self.graph, oriented=True)).tolist().todense()
@@ -127,7 +127,7 @@ class Graph:
                     inc_w[row, col] = inc_nw[row, col] * self.graph[list(self.graph.edges)[col][0]][list(self.graph.edges)[col][1]]['weight']
         inc_nw = inc_nw.T
         self.incidence = inc_w.T
-        self.inLaplacian = self.inDeree - self.adjacency
+        self.inLaplacian = self.inDegree - self.adjacency
         self.totLaplacian = self.incidence.T @ self.incidence
 
     def get_reachability(self):
@@ -226,7 +226,7 @@ class Graph:
         ADJ_LAP2 = -self.totLaplacian + np.diag(np.diag(self.totLaplacian))
         DEG_LAP2 = np.diag(np.diag(self.totLaplacian))
 
-        prim_dataMatrix_baic = [[self.adjacency, self.incidence, self.inDeree, self.totDegree]]
+        prim_dataMatrix_baic = [[self.adjacency, self.incidence, self.inDegree, self.totDegree]]
         prim_dataMatrix_buildA = [[self.inLaplacian]]
         prim_dataMatrix_buildB = [[self.totDegree, ADJ_LAP2, DEG_LAP2]]
         prim_dataPred = [['predecessors of ' + str(i + 1), set(self.graph.predecessors(i + 1))]
@@ -269,22 +269,6 @@ class Graph:
 
         if not np.all(np.around(np.sum(self.inLaplacian, axis=0), decimals=8) == 0) == prim_dataConBal[1][1]:
             print('\n !!! is_weight_balanced check is wrong !!!')
-
-    @staticmethod
-    def show_switching_data(graph_list):
-        """ Show properties of the graphs of a switching newtwork """
-        head = [" "]
-        dataA = ["weight_balanced    "]
-        dataB = ["strongly_connected "]
-        dataC = ["spanning_tree      "]
-        i_g = 1
-        for i_graph in graph_list:
-            dataA.append(i_graph.weight_balanced)
-            dataB.append(i_graph.strongly_connected)
-            dataC.append(i_graph.spanning_tree)
-            head.append("graph " + str(i_g))
-            i_g += 1
-        print(tabulate([dataA, dataB, dataC], headers=head))
 
     def plot_graph(self, mode):
         """ This function plot the graph by predefined properties. """
