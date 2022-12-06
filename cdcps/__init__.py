@@ -23,6 +23,6 @@
 
 from cdcps.signals import Signals
 from cdcps.system import System
-# from cdcps.graph import Graph
+from cdcps.graph import Graph
 # import cdcps.vaiables as variables
 
