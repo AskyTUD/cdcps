@@ -21,9 +21,10 @@
 #   along with cdcps. If not, see <http://www.gnu.org/licenses/>.
 #
 
-from casadi import casadi as ca
+import numpy as np
 
-def matrix(ma_list):
-    return ca.DM(ma_list)
+def vercat(ma_list):
+    return np.array([[ii_number] for i_element in ma_list for ii_number in i_element])
+
 
 

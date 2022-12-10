@@ -25,5 +25,5 @@ from cdcps.signals import Signals
 from cdcps.system import System
 from cdcps.graph import Graph
 from cdcps.multiAgent import MultiAgent
-# import cdcps.vaiables as variables
+import cdcps.basic_fun as basic
 
