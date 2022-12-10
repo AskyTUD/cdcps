@@ -87,6 +87,17 @@ class System:
     def __str__(self):
         return str('LTI_system')
 
+    def get_system_copy(self, n=1, embedingGenerator=True):
+        """ create a copy of the system instance """
+        if embedingGenerator:
+            system_list = [self]
+        else:
+            system_list = []
+
+        for i in range(0, n):
+            system_list.append(deepcopy(self))
+        return system_list
+
     def build_system(self):
         """  Return the one-step integrator and an integration map for the predefined time grid """
         nx = self.state_matrix.shape[0]
@@ -141,40 +152,37 @@ class System:
         self.StateHistory = x_span
         self.OutputHistory = self.OutputFunction(x_span)
 
-    def get_discrete_system(self, T=1, simulate=False, plot=False, sigma=None):
+    def get_discrete_system(self, T=1, simulate=False, plot=False): #, sigma=None):
         """ under construction -> at the moment only autonomous systems are considered """
-        if sigma is not None:
-            T = sigma.data["xdata"][1]
-            sys_loc = System()
-            sys_loc.type = "consensus_discrete"
-            for i_sys in range(len(self.state_matrix)):
-                sys_loc.state_matrix.append(self.get_Matrix_exponential(self.state_matrix[i_sys],T))  #sc.linalg.expm(self.state_matrix[i_sys] * T))
-            sys_loc.t_final = self.t_final
-            sys_loc.initial_state = self.initial_state
+        sys_loc = System()
+        sys_loc.type = "discrete"
+        sys_loc.state_matrix = sc.linalg.expm(self.state_matrix * T)
+        NX = np.shape(sys_loc.state_matrix)[0]
+
+        Ainv = np.linalg.inv(self.state_matrix)
+        Aint = Ainv @ (sc.linalg.expm(self.state_matrix*T) - np.identity(NX))
+        sys_loc.input_matrix = Aint @ self.input_matrix
+        sys_loc.output_matrix = self.output_matrix
+
+        sys_loc.t_final = self.t_final
+        sys_loc.initial_state = self.initial_state
+
+        if isinstance(self.input_val, ca.Function):
+            sys_loc.input_val = self.input_val(0).full()
         else:
-            sys_loc = System()
-            sys_loc.type = "discrete"
-            sys_loc.state_matrix = sc.linalg.expm(self.state_matrix * T)
-            NX = np.shape(sys_loc.state_matrix)[0]
-
-            Ainv = np.linalg.inv(self.state_matrix)
-            Aint = Ainv @ (sc.linalg.expm(self.state_matrix*T) - np.identity(NX))
-            sys_loc.input_matrix = Aint @ self.input_matrix
-            sys_loc.output_matrix = self.output_matrix
-
-            sys_loc.t_final = self.t_final
-            sys_loc.initial_state = self.initial_state
-
-            if isinstance(self.input_val, ca.Function):
-                sys_loc.input_val = self.input_val(0).full()
-            else:
-                sys_loc.input_val = self.input_val
+            sys_loc.input_val = self.input_val
 
         if simulate or plot:
+            nx = sys_loc.state_matrix.shape[0]
+            x = ca.SX.sym('x', nx)
+            u = ca.SX.sym('u')
+            x_next = sys_loc.state_matrix@x + sys_loc.input_matrix@u
+            F = ca.Function('F', [x, u], [x_next])
+
             sys_loc.TimeGrid = np.append(np.arange(0, sys_loc.t_final, T), sys_loc.t_final)
             x_span = sys_loc.initial_state
-            for i in range(len(sys_loc.TimeGrid) - 1):
-                Xnext = sys_loc.state_matrix @ x_span[:, -1] + sys_loc.input_matrix * sys_loc.input_val
+            for i in sys_loc.TimeGrid[1:]:
+                Xnext = F(x_span[:, -1], sys_loc.input_val)
                 x_span = ca.horzcat(x_span, Xnext)
             sys_loc.StateHistory = x_span
         if plot:
@@ -188,7 +196,7 @@ class System:
                 else:
                     pS = figure()
                 pS.line(self.TimeGrid, list(np.array(self.StateHistory[i, :].T)), line_width=3)
-                pS.dot(sys_loc.TimeGrid, list(np.array(sys_loc.StateHistory[i, :].T)), size=25, color="navy", alpha=0.5)
+                pS.dot(sys_loc.TimeGrid, list(np.array(sys_loc.StateHistory[i, :].T)), size=35, color="navy", alpha=0.8)
                 pS.yaxis.axis_label = 'state ' + str(i + 1)
                 pS.xaxis.axis_label = 'time'
                 pS.x_range = Range1d(np.min(self.TimeGrid), np.max(self.TimeGrid))

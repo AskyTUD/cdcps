@@ -25,10 +25,13 @@
 from bokeh.plotting import figure, output_file, show
 from bokeh.layouts import gridplot
 from bokeh.models import Range1d, Arrow, OpenHead, NormalHead, VeeHead, Panel, Tabs
+
 # from bokeh.models.annotations import Label
 
 from tabulate import tabulate
 import scipy as sc
+from scipy.linalg import block_diag
+
 import numpy as np
 import casadi as ca
 
@@ -172,12 +175,14 @@ class MultiAgent(System):
             # ******************************************************
             if flag_switch:
                 pSg = figure(title='switching function')
+                pSg.background_fill_color = 'darkslategray'
                 pSg.step(self.TimeGrid, list(np.array(sigma_span_tot.T)),  line_width=2, line_color='black')
                 pSg.yaxis.axis_label = 'sigma'
                 pSg.xaxis.axis_label = 'time'
                 pSg.x_range = Range1d(np.min(self.TimeGrid), np.max(self.TimeGrid))
 
             pS = figure(title='system states')
+            pS.background_fill_color = 'darkslategray'
             help_min = 0
             help_max = 0
             for i in range(self.consensus["graph"][index].graph.number_of_nodes()): # LAP1.shape[0]
@@ -200,6 +205,7 @@ class MultiAgent(System):
         if Xspace:
             # ******************************************************
             pSS = figure(title='system states')
+            pSS.background_fill_color = 'darkslategray'
             pSS.line(list(np.array(self.StateHistory[0, :].T)), list(np.array(self.StateHistory[1, :].T)), line_width=3)
             pSS.line( np.linspace(help_min,help_max,100), np.linspace(help_min,help_max,100),  line_width=2, line_dash=[5, 10], line_color='black')
             pSS.circle(np.array(self.initial_state)[0], np.array(self.initial_state)[1], size=10, color="red", alpha=0.5)
@@ -272,6 +278,40 @@ class MultiAgent(System):
             return ca.horzcat(self.initial_state, sol['xf']), ca.horzcat(xr0, solr['xf'])
         else:
             return ca.horzcat(self.initial_state, sol['xf'])
+
+    @staticmethod
+    def __get_tot_system(systems, L, k):
+        """ build total system """
+        # put all system parameters into a list ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Atotd = []
+        [Atotd.append(i_sys.state_matrix) for i_sys in systems]
+        Btotd = []
+        [Btotd.append(i_sys.input_matrix) for i_sys in systems]
+        Ctotd = []
+        [Ctotd.append(i_sys.output_matrix) for i_sys in systems]
+
+        # build uo the network parameters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Anet = block_diag(*Atotd)
+        Bnet = block_diag(*Btotd)
+        Cnet = block_diag(*Ctotd)
+
+        # create the states ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        NX = Anet.shape[0]
+        Xnet = ca.SX.sym('Xnet', NX)
+        nx = [isystem.state_matrix.shape[0] for isystem in systems]
+
+        # extract the states of the individual systems ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        posX = [0]
+        [posX.append(posX[-1]+inx) for inx in nx]
+        X_states = [Xnet[posX[ii]:posX[ii+1]] for ii in range(systems.__len__())]
+
+        # build up projection functions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Xpr = []
+        [Xpr.append(ca.Function("X2X",[Xnet], [X_states[ii]],['X_tot'],['x_'+str(ii)])) for ii in range(systems.__len__())]
+        Upr = ca.Function("X2U", [Xnet, k], [-L@Cnet@Xnet], ['X_tot', 'k'], ['U'])
+        Ypr = ca.Function("X2Y", [Xnet], [Cnet@Xnet], ['X_tot'], ['Y'])
+
+        return Anet, Bnet, Cnet, Xpr, Upr, Ypr
 
     @staticmethod
     def show_switching_data(graph_list):
