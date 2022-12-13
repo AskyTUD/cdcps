@@ -1,0 +1,11 @@
+bokeh==2.4.3
+casadi==3.5.5.post2
+control==0.9.2
+ipython==8.7.0
+matplotlib==3.5.2
+networkx==2.8.4
+numpy==1.22.4
+scipy==1.8.1
+setuptools==62.6.0
+sympy==1.10.1
+tabulate==0.8.10
