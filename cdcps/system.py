@@ -250,6 +250,105 @@ class System:
     def get_Matrix_exponential(A, T):
         return sc.linalg.expm(A * T)
 
+    @staticmethod
+    def get_Jordan(systems_A):
+        """ calculate the Jordan form of the system matricies """
+        AJ = []
+        for iA in systems_A:
+            eig_val, T = np.linalg.eig(iA)
+            T_inv = np.linalg.inv(T)
+            AJ.append(T_inv @ iA @ T)
+        return AJ
+
+    @staticmethod
+    def get_system_spectrum_data(systems_A):
+        """ analysis of eigenvalues, algebraic and geometric multiplicity, Jordan subblocks """
+        systems_spectrum = []
+        for A_matrix in systems_A:
+            # extract all eigenvalues ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            eig_val = [A_matrix[index, index] for index in range(A_matrix.shape[0])]
+            # build for each eigenvalue a Jordan block ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            J_blocks = []
+            for i_eig in eig_val:
+                help_index = [index for index, i_help in enumerate(eig_val) if i_help==i_eig]
+                help_J_block = A_matrix[help_index[0]:help_index[-1] + 1, help_index[0]:help_index[-1] + 1]
+                J_blocks.append(help_J_block.tolist())
+            # remove multiple Jordan blocks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            J_blocks_red = []
+            [J_blocks_red.append(x) for x in J_blocks if x not in J_blocks_red]
+            # analysis of the Jordan block ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            spectrum_data = []
+
+            # analysis of each Jordan block ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            for J_block in J_blocks_red:
+                J_block = np.matrix(J_block)
+                alg_mult = J_block.shape[0]
+                geo_mult_c = [alg_mult]
+                if alg_mult > 1:
+                    [geo_mult_c.append(geo_mult_c[-1]-1) for index in range(alg_mult-1) if J_block[index,index+1]==1]
+                geo_mult = geo_mult_c[-1]
+                eigen_val = J_block[0,0]
+                # breaking down the Jordan blocks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                J_sub_blocks = dict(ofSize1=J_block, NofSize1=1) if J_block.shape[0] == 1 else dict()
+                if J_block.shape[0] > 1:
+                    # get indices where a new subblock starts ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                    indc = [0]
+                    for i_row in range(J_block.shape[0]-1):
+                        if J_block[i_row,i_row+1] == 0:
+                            indc = indc + [i_row] + [i_row+1]
+                    indc.append(J_block.shape[0]-1)
+                    # extract the subblock using the indices ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                    for i_block in range(0,indc.__len__(),2):
+                        sub_block = J_block[indc[i_block]:indc[i_block + 1] + 1, indc[i_block]:indc[i_block + 1] + 1]
+                        sub_block_l = np.array(sub_block).tolist()
+                        if sub_block_l in [*J_sub_blocks.values()]:
+                            a = J_sub_blocks.__getitem__('NofSize'+str(sub_block.shape[0]))
+                            J_sub_blocks.__setitem__('NofSize'+str(sub_block.shape[0]), a+1)
+                        else:
+                            J_sub_blocks.__setitem__('ofSize' + str(sub_block.shape[0]), sub_block_l)
+                            J_sub_blocks.__setitem__('NofSize' + str(sub_block.shape[0]), 1)
+                    # convert the subblock to numpy matrix ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                    for i_key in J_sub_blocks.keys():
+                        if i_key.startswith('of'):
+                            JJ = J_sub_blocks.__getitem__(i_key)
+                            J_sub_blocks.__setitem__(i_key, np.matrix(JJ))
+                spectrum_data.append((eigen_val, alg_mult, geo_mult, J_sub_blocks))
+
+            # consider complex eigenvalues as one  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            for i_spec in spectrum_data:
+                if np.imag(i_spec[0]) != 0:
+                    # check if conjugated eigenvalue also exist
+                    check_conj = [[True, index] for index, ii_spec in enumerate(spectrum_data) if i_spec[0].conj() == ii_spec[0]]
+
+                    if check_conj[0][0]:
+                        if i_spec[1]>1 or i_spec[2]>1:
+                            print("System:get_system_spectrum_data: checking for complex conjugated has to account for a not considered case ")
+                        new_eig = {i_spec[0], i_spec[0].conj()}
+                        new_alg_mult = i_spec[1]+1
+                        new_geo_mult = i_spec[2]+1
+                        new_J = np.matrix([[np.real(i_spec[0]), -np.imag(i_spec[0])],
+                                           [np.imag(i_spec[0]), np.real(i_spec[0])]])
+                        new_J_block = dict(ofSize2=new_J, NofSize2=1)
+                        spectrum_data.remove(spectrum_data[check_conj[0][1]])
+                        spectrum_data.remove(i_spec)
+                        spectrum_data.append((new_eig, new_alg_mult, new_geo_mult, new_J_block))
+                        # J_blocks_red.append([[np.real(i_ele_), -np.imag(i_ele_)], [np.imag(i_ele_), np.real(i_ele_)]])
+
+            systems_spectrum.append(spectrum_data)
+
+        return systems_spectrum
+
+    def is_observable(self):
+        """ Check if the system is observable"""
+        lambda_A = np.linalg.eig(self.state_matrix)[0]
+        I = np.eye(self.state_matrix.shape[0])
+        self.observable = True
+        for ilambda in lambda_A:
+            rank_O = np.linalg.matrix_rank(np.block([[ilambda*I-self.state_matrix], [self.output_matrix]]))
+            if rank_O != self.state_matrix.shape[0]:
+                self.observable = False
+        return self.observable
+
     def plot_system(self, *argv):
         """ Plot the input, state and trajectory """
         default = ['ISO' if len(argv) < 1 else argv[0]][0]
