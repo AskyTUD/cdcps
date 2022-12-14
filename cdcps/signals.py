@@ -29,6 +29,7 @@ import matplotlib.animation
 
 from casadi import casadi as ca
 
+
 class Signals:
     def __init__(self, signal_fun, signal_data, signal_type):
         self.signal = signal_fun

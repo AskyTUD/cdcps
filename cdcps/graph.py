@@ -21,13 +21,12 @@
 #   along with cdcps. If not, see <http://www.gnu.org/licenses/>.
 #
 
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
-
 from tabulate import tabulate
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 class Graph:

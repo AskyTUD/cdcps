@@ -26,8 +26,6 @@ from bokeh.plotting import figure, output_file, show
 from bokeh.layouts import gridplot
 from bokeh.models import Range1d, Arrow, OpenHead, NormalHead, VeeHead, Panel, Tabs
 
-# from bokeh.models.annotations import Label
-
 from tabulate import tabulate
 import scipy as sc
 from scipy.linalg import block_diag
